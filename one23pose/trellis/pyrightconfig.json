@@ -1,0 +1,15 @@
+{
+    "exclude": [
+        "data",
+        "data_dreamvserse2_sslatent",
+        "lightning_logs",
+        "render_data",
+        "more_data",
+        "assets",
+        "checkpoints",
+        "dataset_test_results",
+        "weights",
+        "examples",
+        "results"
+    ]
+}

@@ -1,0 +1,47 @@
+seed: 0
+# config the hydra logger, only in hydra `$` can be decoded as cite
+data: ./assets/room
+vis_track: false
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+  job_logging: {}
+  hydra_logging: {}
+mixed_precision: bf16
+visdom:
+  viz_ip: "localhost"
+  port: 6666
+relax_load: false
+res_all: 336
+# config the ckpt path
+ckpts: "Yuxihenry/SpatialTrackerCkpts"
+batch_size: 1
+input:
+  type: image
+fps: 1
+model_wind_size: 32
+model:
+  backbone_cfg:      
+    ckpt_dir: "checkpoints/model.pt"
+  chunk_size: 24        # downsample factor for patchified features
+  ckpt_fwd: true
+  ft_cfg:
+    mode: "fix"
+    paras_name:  []
+  resolution: 336
+  max_len: 512
+  Track_cfg:
+    base_ckpt: "checkpoints/scaled_online.pth"
+    base:
+      stride: 4
+      corr_radius: 3
+      window_len: 20
+    stablizer: False
+    mode: "online"
+    s_wind: 20
+    overlap: 6
+  track_num: 0
+
+dist_train:
+  num_nodes: 1

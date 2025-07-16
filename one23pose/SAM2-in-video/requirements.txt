@@ -1,0 +1,6 @@
+# Can't trigger .select() function of gr.Image in recent version of gradio
+gradio==4.41.0
+fastapi==0.112.4	
+gradio-client==1.3.0
+pydantic==2.9.0
+pydantic-core==2.23.2

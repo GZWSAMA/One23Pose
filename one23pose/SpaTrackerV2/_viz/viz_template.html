@@ -1,0 +1,2115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Point Cloud Visualizer</title>
+  <style>
+    :root {
+      --primary: #9b59b6; /* Brighter purple for dark mode */
+      --primary-light: #3a2e4a;
+      --secondary: #a86add;
+      --accent: #ff6e6e;
+      --bg: #1a1a1a;
+      --surface: #2c2c2c;
+      --text: #e0e0e0;
+      --text-secondary: #a0a0a0;
+      --border: #444444;
+      --shadow: rgba(0, 0, 0, 0.2);
+      --shadow-hover: rgba(0, 0, 0, 0.3);
+      
+      --space-sm: 16px;
+      --space-md: 24px;
+      --space-lg: 32px;
+    }
+    
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    #canvas-container {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+    }
+    
+    #ui-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+    
+    #status-bar {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: rgba(30, 30, 30, 0.9);
+      padding: 8px 16px;
+      border-radius: 8px;
+      pointer-events: auto;
+      box-shadow: 0 4px 6px var(--shadow);
+      backdrop-filter: blur(4px);
+      border: 1px solid var(--border);
+      color: var(--text);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+      font-weight: 500;
+    }
+    
+    #status-bar.hidden {
+      opacity: 0;
+      transform: translateY(-20px);
+      pointer-events: none;
+    }
+    
+    #control-panel {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(44, 44, 44, 0.95);
+      padding: 6px 8px;
+      border-radius: 6px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      pointer-events: auto;
+      box-shadow: 0 4px 10px var(--shadow);
+      backdrop-filter: blur(4px);
+      border: 1px solid var(--border);
+    }
+    
+    #timeline {
+      width: 150px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      position: relative;
+      cursor: pointer;
+    }
+    
+    #progress {
+      position: absolute;
+      height: 100%;
+      background: var(--primary);
+      border-radius: 2px;
+      width: 0%;
+    }
+    
+    #playback-controls {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    
+    button {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 4px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, transform 0.2s;
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      font-size: 6px;
+    }
+    
+    button:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: translateY(-1px);
+    }
+    
+    button.active {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 2px 8px rgba(155, 89, 182, 0.4);
+    }
+    
+    select, input {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 4px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 6px;
+    }
+    
+    .icon {
+      width: 10px;
+      height: 10px;
+      fill: currentColor;
+    }
+    
+    .tooltip {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      color: var(--text);
+      padding: 3px 6px;
+      border-radius: 3px;
+      font-size: 7px;
+      white-space: nowrap;
+      margin-bottom: 4px;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+      box-shadow: 0 2px 4px var(--shadow);
+      border: 1px solid var(--border);
+    }
+    
+    button:hover .tooltip {
+      opacity: 1;
+    }
+    
+    #settings-panel {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(44, 44, 44, 0.98);
+      padding: 10px;
+      border-radius: 6px;
+      width: 195px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      pointer-events: auto;
+      box-shadow: 0 4px 15px var(--shadow);
+      backdrop-filter: blur(4px);
+      border: 1px solid var(--border);
+      display: block;
+      opacity: 1;
+      scrollbar-width: thin;
+      scrollbar-color: var(--primary-light) transparent;
+      transition: transform 0.35s ease-in-out, opacity 0.3s ease-in-out;
+    }
+    
+    #settings-panel.is-hidden {
+      transform: translateX(calc(100% + 20px));
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    #settings-panel::-webkit-scrollbar {
+      width: 3px;
+    }
+    
+    #settings-panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    #settings-panel::-webkit-scrollbar-thumb {
+      background-color: var(--primary-light);
+      border-radius: 3px;
+    }
+    
+    @media (max-height: 700px) {
+      #settings-panel {
+        max-height: calc(100vh - 40px);
+      }
+    }
+    
+    @media (max-width: 768px) {
+      #control-panel {
+        width: 90%;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      
+      #timeline {
+        width: 100%;
+        order: 3;
+        margin-top: 10px;
+      }
+      
+      #settings-panel {
+        width: 140px;
+        right: 10px;
+        top: 10px;
+        max-height: calc(100vh - 20px);
+      }
+    }
+    
+    .settings-group {
+      margin-bottom: 8px;
+    }
+    
+    .settings-group h3 {
+      margin: 0 0 6px 0;
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+    }
+    
+    .slider-container label {
+      min-width: 60px;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+    
+    input[type="range"] {
+      flex: 1;
+      height: 2px;
+      -webkit-appearance: none;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 1px;
+      min-width: 0;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+    }
+    
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 20px;
+      height: 10px;
+    }
+    
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.1);
+      transition: .4s;
+      border-radius: 10px;
+    }
+    
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 8px;
+      width: 8px;
+      left: 1px;
+      bottom: 1px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      transition: .4s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .toggle-slider {
+      background: var(--primary);
+    }
+    
+    input:checked + .toggle-slider:before {
+      transform: translateX(10px);
+    }
+    
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+    
+    .checkbox-container label {
+      font-size: 10px;
+      cursor: pointer;
+    }
+    
+    #loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.5s;
+    }
+    
+    #loading-overlay.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(155, 89, 182, 0.2);
+      border-radius: 50%;
+      border-top-color: var(--primary);
+      animation: spin 1s ease-in-out infinite;
+      margin-bottom: 16px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    #loading-text {
+      margin-top: 16px;
+      font-size: 18px;
+      color: var(--text);
+      font-weight: 500;
+    }
+    
+    #frame-counter {
+      color: var(--text-secondary);
+      font-size: 7px;
+      font-weight: 500;
+      min-width: 60px;
+      text-align: center;
+      padding: 0 4px;
+    }
+    
+    .control-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      padding: 4px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      font-size: 6px;
+    }
+    
+    .control-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: translateY(-1px);
+    }
+    
+    .control-btn.active {
+      background: var(--primary);
+      color: white;
+    }
+    
+    .control-btn.active:hover {
+      background: var(--primary);
+      box-shadow: 0 2px 8px rgba(155, 89, 182, 0.4);
+    }
+    
+    #settings-toggle-btn {
+      position: relative;
+      border-radius: 6px;
+      z-index: 20;
+    }
+    
+    #settings-toggle-btn.active {
+      background: var(--primary);
+      color: white;
+    }
+    
+    #status-bar,
+    #control-panel,
+    #settings-panel,
+    button,
+    input,
+    select,
+    .toggle-switch {
+      pointer-events: auto;
+    }
+    
+    h2 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-top: 0;
+      margin-bottom: 12px;
+      color: var(--primary);
+      cursor: move;
+      user-select: none;
+      display: flex;
+      align-items: center;
+    }
+    
+    .drag-handle {
+      font-size: 10px;
+      margin-right: 4px;
+      opacity: 0.6;
+    }
+    
+    h2:hover .drag-handle {
+      opacity: 1;
+    }
+    
+    .loading-subtitle {
+      font-size: 7px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+    
+    #reset-view-btn {
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1px solid rgba(155, 89, 182, 0.2);
+      font-weight: 600;
+      font-size: 9px;
+      padding: 4px 6px;
+      transition: all 0.2s;
+    }
+    
+    #reset-view-btn:hover {
+      background: var(--primary);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(155, 89, 182, 0.3);
+    }
+
+    #show-settings-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 15;
+      display: none;
+    }
+    
+    #settings-panel.visible {
+      display: block;
+      opacity: 1;
+      animation: slideIn 0.3s ease forwards;
+    }
+    
+    @keyframes slideIn {
+      from {
+        transform: translateY(20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+    
+    .dragging {
+      opacity: 0.9;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important;
+      transition: none !important;
+    }
+    
+    /* Tooltip for draggable element */
+    .tooltip-drag {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--primary);
+      color: white;
+      font-size: 9px;
+      padding: 2px 4px;
+      border-radius: 2px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      white-space: nowrap;
+      bottom: 100%;
+      margin-bottom: 4px;
+    }
+    
+    h2:hover .tooltip-drag {
+      opacity: 1;
+    }
+    
+    .btn-group {
+      display: flex;
+      margin-top: 8px;
+    }
+
+    #reset-settings-btn {
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1px solid rgba(155, 89, 182, 0.2);
+      font-weight: 600;
+      font-size: 9px;
+      padding: 4px 6px;
+      transition: all 0.2s;
+    }
+    
+    #reset-settings-btn:hover {
+      background: var(--primary);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(155, 89, 182, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <div id="canvas-container"></div>
+  
+  <div id="ui-container">
+    <div id="status-bar">Initializing...</div>
+    
+    <div id="control-panel">
+      <button id="play-pause-btn" class="control-btn">
+        <svg class="icon" viewBox="0 0 24 24">
+          <path id="play-icon" d="M8 5v14l11-7z"/>
+          <path id="pause-icon" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" style="display: none;"/>
+        </svg>
+        <span class="tooltip">Play/Pause</span>
+      </button>
+      
+      <div id="timeline">
+        <div id="progress"></div>
+      </div>
+      
+      <div id="frame-counter">Frame 0 / 0</div>
+      
+      <div id="playback-controls">
+        <button id="speed-btn" class="control-btn">1x</button>
+      </div>
+    </div>
+    
+    <div id="settings-panel">
+      <h2>
+        <span class="drag-handle">☰</span>
+        Visualization Settings
+        <button id="hide-settings-btn" class="control-btn" style="margin-left: auto; padding: 2px;" title="Hide Panel">
+          <svg class="icon" viewBox="0 0 24 24" style="width: 9px; height: 9px;">
+            <path d="M14.59 7.41L18.17 11H4v2h14.17l-3.58 3.59L16 18l6-6-6-6-1.41 1.41z"/>
+          </svg>
+        </button>
+      </h2>
+      
+      <div class="settings-group">
+        <h3>Point Cloud</h3>
+        <div class="slider-container">
+          <label for="point-size">Size</label>
+          <input type="range" id="point-size" min="0.005" max="0.1" step="0.005" value="0.03">
+        </div>
+        <div class="slider-container">
+          <label for="point-opacity">Opacity</label>
+          <input type="range" id="point-opacity" min="0.1" max="1" step="0.05" value="1">
+        </div>
+        <div class="slider-container">
+          <label for="max-depth">Max Depth</label>
+          <input type="range" id="max-depth" min="0.1" max="10" step="0.2" value="100">
+        </div>
+      </div>
+      
+      <div class="settings-group">
+        <h3>Trajectory</h3>
+        <div class="checkbox-container">
+          <label class="toggle-switch">
+            <input type="checkbox" id="show-trajectory" checked>
+            <span class="toggle-slider"></span>
+          </label>
+          <label for="show-trajectory">Show Trajectory</label>
+        </div>
+        <div class="checkbox-container">
+          <label class="toggle-switch">
+            <input type="checkbox" id="enable-rich-trail">
+            <span class="toggle-slider"></span>
+          </label>
+          <label for="enable-rich-trail">Visual-Rich Trail</label>
+        </div>
+        <div class="slider-container">
+          <label for="trajectory-line-width">Line Width</label>
+          <input type="range" id="trajectory-line-width" min="0.5" max="5" step="0.5" value="1.5">
+        </div>
+        <div class="slider-container">
+          <label for="trajectory-ball-size">Ball Size</label>
+          <input type="range" id="trajectory-ball-size" min="0.005" max="0.05" step="0.001" value="0.02">
+        </div>
+        <div class="slider-container">
+          <label for="trajectory-history">History Frames</label>
+          <input type="range" id="trajectory-history" min="1" max="500" step="1" value="30">
+        </div>
+        <div class="slider-container" id="tail-opacity-container" style="display: none;">
+          <label for="trajectory-fade">Tail Opacity</label>
+          <input type="range" id="trajectory-fade" min="0" max="1" step="0.05" value="0.0">
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>Camera</h3>
+        <div class="checkbox-container">
+          <label class="toggle-switch">
+            <input type="checkbox" id="show-camera-frustum" checked>
+            <span class="toggle-slider"></span>
+          </label>
+          <label for="show-camera-frustum">Show Camera Frustum</label>
+        </div>
+        <div class="slider-container">
+          <label for="frustum-size">Size</label>
+          <input type="range" id="frustum-size" min="0.02" max="0.5" step="0.01" value="0.2">
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>Keep History</h3>
+        <div class="checkbox-container">
+          <label class="toggle-switch">
+            <input type="checkbox" id="enable-keep-history">
+            <span class="toggle-slider"></span>
+          </label>
+          <label for="enable-keep-history">Enable Keep History</label>
+        </div>
+        <div class="slider-container">
+          <label for="history-stride">Stride</label>
+          <select id="history-stride">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="5" selected>5</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>Background</h3>
+        <div class="checkbox-container">
+          <label class="toggle-switch">
+            <input type="checkbox" id="white-background">
+            <span class="toggle-slider"></span>
+          </label>
+          <label for="white-background">White Background</label>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="btn-group">
+          <button id="reset-view-btn" style="flex: 1; margin-right: 5px;">Reset View</button>
+          <button id="reset-settings-btn" style="flex: 1; margin-left: 5px;">Reset Settings</button>
+        </div>
+      </div>
+    </div>
+
+    <button id="show-settings-btn" class="control-btn" title="Show Settings">
+      <svg class="icon" viewBox="0 0 24 24">
+        <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.04,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+      </svg>
+    </button>
+  </div>
+  
+  <div id="loading-overlay">
+    <!-- <div class="spinner"></div> -->
+    <div id="loading-text"></div>
+    <div class="loading-subtitle" style="font-size: medium;">Interactive Viewer of 3D Tracking</div>
+  </div>
+
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dat.gui@0.7.7/build/dat.gui.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/lines/LineSegmentsGeometry.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/lines/LineGeometry.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/lines/LineMaterial.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/lines/LineSegments2.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/lines/Line2.js"></script>
+  
+  <script>
+    class PointCloudVisualizer {
+      constructor() {
+        this.data = null;
+        this.config = {};
+        this.currentFrame = 0;
+        this.isPlaying = false;
+        this.playbackSpeed = 1;
+        this.lastFrameTime = 0;
+        this.defaultSettings = null;
+        
+        this.ui = {
+          statusBar: document.getElementById('status-bar'),
+          playPauseBtn: document.getElementById('play-pause-btn'),
+          speedBtn: document.getElementById('speed-btn'),
+          timeline: document.getElementById('timeline'),
+          progress: document.getElementById('progress'),
+          settingsPanel: document.getElementById('settings-panel'),
+          loadingOverlay: document.getElementById('loading-overlay'),
+          loadingText: document.getElementById('loading-text'),
+          settingsToggleBtn: document.getElementById('settings-toggle-btn'),
+          frameCounter: document.getElementById('frame-counter'),
+          pointSize: document.getElementById('point-size'),
+          pointOpacity: document.getElementById('point-opacity'),
+          maxDepth: document.getElementById('max-depth'),
+          showTrajectory: document.getElementById('show-trajectory'),
+          enableRichTrail: document.getElementById('enable-rich-trail'),
+          trajectoryLineWidth: document.getElementById('trajectory-line-width'),
+          trajectoryBallSize: document.getElementById('trajectory-ball-size'),
+          trajectoryHistory: document.getElementById('trajectory-history'),
+          trajectoryFade: document.getElementById('trajectory-fade'),
+          tailOpacityContainer: document.getElementById('tail-opacity-container'),
+          resetViewBtn: document.getElementById('reset-view-btn'),
+          showCameraFrustum: document.getElementById('show-camera-frustum'),
+          frustumSize: document.getElementById('frustum-size'),
+          hideSettingsBtn: document.getElementById('hide-settings-btn'),
+          showSettingsBtn: document.getElementById('show-settings-btn'),
+          enableKeepHistory: document.getElementById('enable-keep-history'),
+          historyStride: document.getElementById('history-stride'),
+          whiteBackground: document.getElementById('white-background')
+        };
+        
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+        this.controls = null;
+        this.pointCloud = null;
+        this.trajectories = [];
+        this.cameraFrustum = null;
+        
+        // Keep History functionality
+        this.historyPointClouds = [];
+        this.historyTrajectories = [];
+        this.historyFrames = [];
+        this.maxHistoryFrames = 20;
+        
+        this.initThreeJS();
+        this.loadDefaultSettings().then(() => {
+          this.initEventListeners();
+          this.loadData();
+        });
+      }
+      
+      async loadDefaultSettings() {
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          const dataPath = urlParams.get('data') || '';
+          
+          const defaultSettings = {
+            pointSize: 0.03,
+            pointOpacity: 1.0,
+            showTrajectory: true,
+            trajectoryLineWidth: 2.5,
+            trajectoryBallSize: 0.015,
+            trajectoryHistory: 0,
+            showCameraFrustum: true,
+            frustumSize: 0.2
+          };
+          
+          if (!dataPath) {
+            this.defaultSettings = defaultSettings;
+            this.applyDefaultSettings();
+            return;
+          }
+          
+          // Try to extract dataset and videoId from the data path
+          // Expected format: demos/datasetname/videoid.bin
+          const pathParts = dataPath.split('/');
+          if (pathParts.length < 3) {
+            this.defaultSettings = defaultSettings;
+            this.applyDefaultSettings();
+            return;
+          }
+          
+          const datasetName = pathParts[pathParts.length - 2];
+          let videoId = pathParts[pathParts.length - 1].replace('.bin', '');
+          
+          // Load settings from data.json
+          const response = await fetch('./data.json');
+          if (!response.ok) {
+            this.defaultSettings = defaultSettings;
+            this.applyDefaultSettings();
+            return;
+          }
+          
+          const settingsData = await response.json();
+          
+          // Check if this dataset and video exist
+          if (settingsData[datasetName] && settingsData[datasetName][videoId]) {
+            this.defaultSettings = settingsData[datasetName][videoId];
+          } else {
+            this.defaultSettings = defaultSettings;
+          }
+          
+          this.applyDefaultSettings();
+        } catch (error) {
+          console.error("Error loading default settings:", error);
+          
+          this.defaultSettings = {
+            pointSize: 0.03,
+            pointOpacity: 1.0,
+            showTrajectory: true,
+            trajectoryLineWidth: 2.5,
+            trajectoryBallSize: 0.015,
+            trajectoryHistory: 0,
+            showCameraFrustum: true,
+            frustumSize: 0.2
+          };
+          
+          this.applyDefaultSettings();
+        }
+      }
+      
+      applyDefaultSettings() {
+        if (!this.defaultSettings) return;
+        
+        if (this.ui.pointSize) {
+          this.ui.pointSize.value = this.defaultSettings.pointSize;
+        }
+        
+        if (this.ui.pointOpacity) {
+          this.ui.pointOpacity.value = this.defaultSettings.pointOpacity;
+        }
+        
+        if (this.ui.maxDepth) {
+          this.ui.maxDepth.value = this.defaultSettings.maxDepth || 100.0;
+        }
+        
+        if (this.ui.showTrajectory) {
+          this.ui.showTrajectory.checked = this.defaultSettings.showTrajectory;
+        }
+        
+        if (this.ui.trajectoryLineWidth) {
+          this.ui.trajectoryLineWidth.value = this.defaultSettings.trajectoryLineWidth;
+        }
+        
+        if (this.ui.trajectoryBallSize) {
+          this.ui.trajectoryBallSize.value = this.defaultSettings.trajectoryBallSize;
+        }
+        
+        if (this.ui.trajectoryHistory) {
+          this.ui.trajectoryHistory.value = this.defaultSettings.trajectoryHistory;
+        }
+        
+        if (this.ui.showCameraFrustum) {
+          this.ui.showCameraFrustum.checked = this.defaultSettings.showCameraFrustum;
+        }
+        
+        if (this.ui.frustumSize) {
+          this.ui.frustumSize.value = this.defaultSettings.frustumSize;
+        }
+      }
+      
+      initThreeJS() {
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x1a1a1a);
+        
+        this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 10000);
+        this.camera.position.set(0, 0, 0);
+        
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(this.renderer.domElement);
+        
+        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.05;
+        this.controls.target.set(0, 0, 0);
+        this.controls.minDistance = 0.1;
+        this.controls.maxDistance = 1000;
+        this.controls.update();
+        
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        this.scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(1, 1, 1);
+        this.scene.add(directionalLight);
+      }
+      
+      initEventListeners() {
+        window.addEventListener('resize', () => this.onWindowResize());
+        
+        this.ui.playPauseBtn.addEventListener('click', () => this.togglePlayback());
+        
+        this.ui.timeline.addEventListener('click', (e) => {
+          const rect = this.ui.timeline.getBoundingClientRect();
+          const pos = (e.clientX - rect.left) / rect.width;
+          this.seekTo(pos);
+        });
+        
+        this.ui.speedBtn.addEventListener('click', () => this.cyclePlaybackSpeed());
+        
+        this.ui.pointSize.addEventListener('input', () => this.updatePointCloudSettings());
+        this.ui.pointOpacity.addEventListener('input', () => this.updatePointCloudSettings());
+        this.ui.maxDepth.addEventListener('input', () => this.updatePointCloudSettings());
+        this.ui.showTrajectory.addEventListener('change', () => {
+          this.trajectories.forEach(trajectory => {
+            trajectory.visible = this.ui.showTrajectory.checked;
+          });
+        });
+        
+        this.ui.enableRichTrail.addEventListener('change', () => {
+            this.ui.tailOpacityContainer.style.display = this.ui.enableRichTrail.checked ? 'flex' : 'none';
+            this.updateTrajectories(this.currentFrame);
+        });
+        
+        this.ui.trajectoryLineWidth.addEventListener('input', () => this.updateTrajectorySettings());
+        this.ui.trajectoryBallSize.addEventListener('input', () => this.updateTrajectorySettings());
+        this.ui.trajectoryHistory.addEventListener('input', () => {
+          this.updateTrajectories(this.currentFrame);
+        });
+        this.ui.trajectoryFade.addEventListener('input', () => {
+          this.updateTrajectories(this.currentFrame);
+        });
+        
+        this.ui.resetViewBtn.addEventListener('click', () => this.resetView());
+        
+        const resetSettingsBtn = document.getElementById('reset-settings-btn');
+        if (resetSettingsBtn) {
+          resetSettingsBtn.addEventListener('click', () => this.resetSettings());
+        }
+        
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && this.ui.settingsPanel.classList.contains('visible')) {
+            this.ui.settingsPanel.classList.remove('visible');
+            this.ui.settingsToggleBtn.classList.remove('active');
+          }
+        });
+        
+        if (this.ui.settingsToggleBtn) {
+          this.ui.settingsToggleBtn.addEventListener('click', () => {
+            const isVisible = this.ui.settingsPanel.classList.toggle('visible');
+            this.ui.settingsToggleBtn.classList.toggle('active', isVisible);
+            
+            if (isVisible) {
+              const panelRect = this.ui.settingsPanel.getBoundingClientRect();
+              const viewportHeight = window.innerHeight;
+              
+              if (panelRect.bottom > viewportHeight) {
+                this.ui.settingsPanel.style.bottom = 'auto';
+                this.ui.settingsPanel.style.top = '80px';
+              }
+            }
+          });
+        }
+        
+        if (this.ui.frustumSize) {
+          this.ui.frustumSize.addEventListener('input', () => this.updateFrustumDimensions());
+        }
+
+        if (this.ui.hideSettingsBtn && this.ui.showSettingsBtn && this.ui.settingsPanel) {
+          this.ui.hideSettingsBtn.addEventListener('click', () => {
+            this.ui.settingsPanel.classList.add('is-hidden');
+            this.ui.showSettingsBtn.style.display = 'flex';
+          });
+    
+          this.ui.showSettingsBtn.addEventListener('click', () => {
+            this.ui.settingsPanel.classList.remove('is-hidden');
+            this.ui.showSettingsBtn.style.display = 'none';
+          });
+        }
+        
+        // Keep History event listeners
+        if (this.ui.enableKeepHistory) {
+          this.ui.enableKeepHistory.addEventListener('change', () => {
+            if (!this.ui.enableKeepHistory.checked) {
+              this.clearHistory();
+            }
+          });
+        }
+        
+        if (this.ui.historyStride) {
+          this.ui.historyStride.addEventListener('change', () => {
+            this.clearHistory();
+          });
+        }
+        
+        // Background toggle event listener
+        if (this.ui.whiteBackground) {
+          this.ui.whiteBackground.addEventListener('change', () => {
+            this.toggleBackground();
+          });
+        }
+      }
+      
+      makeElementDraggable(element) {
+        let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+        
+        const dragHandle = element.querySelector('h2');
+        
+        if (dragHandle) {
+          dragHandle.onmousedown = dragMouseDown;
+          dragHandle.title = "Drag to move panel";
+        } else {
+          element.onmousedown = dragMouseDown;
+        }
+        
+        function dragMouseDown(e) {
+          e = e || window.event;
+          e.preventDefault();
+          pos3 = e.clientX;
+          pos4 = e.clientY;
+          document.onmouseup = closeDragElement;
+          document.onmousemove = elementDrag;
+          
+          element.classList.add('dragging');
+        }
+        
+        function elementDrag(e) {
+          e = e || window.event;
+          e.preventDefault();
+          pos1 = pos3 - e.clientX;
+          pos2 = pos4 - e.clientY;
+          pos3 = e.clientX;
+          pos4 = e.clientY;
+          
+          const newTop = element.offsetTop - pos2;
+          const newLeft = element.offsetLeft - pos1;
+          
+          const viewportWidth = window.innerWidth;
+          const viewportHeight = window.innerHeight;
+          
+          const panelRect = element.getBoundingClientRect();
+          
+          const maxTop = viewportHeight - 50;
+          const maxLeft = viewportWidth - 50;
+          
+          element.style.top = Math.min(Math.max(newTop, 0), maxTop) + "px";
+          element.style.left = Math.min(Math.max(newLeft, 0), maxLeft) + "px";
+          
+          // Remove bottom/right settings when dragging
+          element.style.bottom = 'auto';
+          element.style.right = 'auto';
+        }
+        
+        function closeDragElement() {
+          document.onmouseup = null;
+          document.onmousemove = null;
+          
+          element.classList.remove('dragging');
+        }
+      }
+      
+      async loadData() {
+        try {
+          // this.ui.loadingText.textContent = "Loading binary data...";
+
+          let arrayBuffer;
+
+          if (window.embeddedBase64) {
+            // Base64 embedded path
+            const binaryString = atob(window.embeddedBase64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            arrayBuffer = bytes.buffer;
+          } else {
+            // Default fetch path (fallback)
+            const urlParams = new URLSearchParams(window.location.search);
+            const dataPath = urlParams.get('data') || 'data.bin'; 
+
+            const response = await fetch(dataPath);
+            if (!response.ok) throw new Error(`Failed to load ${dataPath}`);
+            arrayBuffer = await response.arrayBuffer();
+          }
+
+          const dataView = new DataView(arrayBuffer);
+          const headerLen = dataView.getUint32(0, true);
+          
+          const headerText = new TextDecoder("utf-8").decode(arrayBuffer.slice(4, 4 + headerLen));
+          const header = JSON.parse(headerText);
+          
+          const compressedBlob = new Uint8Array(arrayBuffer, 4 + headerLen);
+          const decompressed = pako.inflate(compressedBlob).buffer;
+          
+          const arrays = {};
+          for (const key in header) {
+            if (key === "meta") continue;
+            
+            const meta = header[key];
+            const { dtype, shape, offset, length } = meta;
+            const slice = decompressed.slice(offset, offset + length);
+            
+            let typedArray;
+            switch (dtype) {
+              case "uint8": typedArray = new Uint8Array(slice); break;
+              case "uint16": typedArray = new Uint16Array(slice); break;
+              case "float32": typedArray = new Float32Array(slice); break;
+              case "float64": typedArray = new Float64Array(slice); break;
+              default: throw new Error(`Unknown dtype: ${dtype}`);
+            }
+            
+            arrays[key] = { data: typedArray, shape: shape };
+          }
+          
+          this.data = arrays;
+          this.config = header.meta;
+          
+          this.initCameraWithCorrectFOV();
+          this.ui.loadingText.textContent = "Creating point cloud...";
+          
+          this.initPointCloud();
+          this.initTrajectories();
+          
+          setTimeout(() => {
+            this.ui.loadingOverlay.classList.add('fade-out');
+            this.ui.statusBar.classList.add('hidden');
+            this.startAnimation();
+          }, 500);
+        } catch (error) {
+          console.error("Error loading data:", error);
+          this.ui.statusBar.textContent = `Error: ${error.message}`;
+          // this.ui.loadingText.textContent = `Error loading data: ${error.message}`;
+        }
+      }
+      
+      initPointCloud() {
+        const numPoints = this.config.resolution[0] * this.config.resolution[1];
+        const positions = new Float32Array(numPoints * 3);
+        const colors = new Float32Array(numPoints * 3);
+        
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3).setUsage(THREE.DynamicDrawUsage));
+        
+        const pointSize = parseFloat(this.ui.pointSize.value) || this.defaultSettings.pointSize;
+        const pointOpacity = parseFloat(this.ui.pointOpacity.value) || this.defaultSettings.pointOpacity;
+        
+        const material = new THREE.PointsMaterial({
+          size: pointSize,
+          vertexColors: true,
+          transparent: true,
+          opacity: pointOpacity,
+          sizeAttenuation: true
+        });
+        
+        this.pointCloud = new THREE.Points(geometry, material);
+        this.scene.add(this.pointCloud);
+      }
+      
+      initTrajectories() {
+        if (!this.data.trajectories) return;
+        
+        this.trajectories.forEach(trajectory => {
+            if (trajectory.userData.lineSegments) {
+                trajectory.userData.lineSegments.forEach(segment => {
+                    segment.geometry.dispose();
+                    segment.material.dispose();
+                });
+            }
+            this.scene.remove(trajectory);
+        });
+        this.trajectories = [];
+        
+        const shape = this.data.trajectories.shape;
+        if (!shape || shape.length < 2) return;
+        
+        const [totalFrames, numTrajectories] = shape;
+        const palette = this.createColorPalette(numTrajectories);
+        const resolution = new THREE.Vector2(window.innerWidth, window.innerHeight);
+        const maxHistory = 500; // Max value of the history slider, for the object pool
+
+        for (let i = 0; i < numTrajectories; i++) {
+            const trajectoryGroup = new THREE.Group();
+            
+            const ballSize = parseFloat(this.ui.trajectoryBallSize.value);
+            const sphereGeometry = new THREE.SphereGeometry(ballSize, 16, 16);
+            const sphereMaterial = new THREE.MeshBasicMaterial({ color: palette[i], transparent: true });
+            const positionMarker = new THREE.Mesh(sphereGeometry, sphereMaterial);
+            trajectoryGroup.add(positionMarker);
+
+            // High-Performance Line (default)
+            const simpleLineGeometry = new THREE.BufferGeometry();
+            const simpleLinePositions = new Float32Array(maxHistory * 3);
+            simpleLineGeometry.setAttribute('position', new THREE.BufferAttribute(simpleLinePositions, 3).setUsage(THREE.DynamicDrawUsage));
+            const simpleLine = new THREE.Line(simpleLineGeometry, new THREE.LineBasicMaterial({ color: palette[i] }));
+            simpleLine.frustumCulled = false;
+            trajectoryGroup.add(simpleLine);
+            
+            // High-Quality Line Segments (for rich trail)
+            const lineSegments = [];
+            const lineWidth = parseFloat(this.ui.trajectoryLineWidth.value);
+
+            // Create a pool of line segment objects
+            for (let j = 0; j < maxHistory - 1; j++) {
+                const lineGeometry = new THREE.LineGeometry();
+                lineGeometry.setPositions([0, 0, 0, 0, 0, 0]); 
+                const lineMaterial = new THREE.LineMaterial({
+                    color: palette[i],
+                    linewidth: lineWidth,
+                    resolution: resolution,
+                    transparent: true,
+                    depthWrite: false, // Correctly handle transparency
+                    opacity: 0
+                });
+                const segment = new THREE.Line2(lineGeometry, lineMaterial);
+                segment.frustumCulled = false;
+                segment.visible = false; // Start with all segments hidden
+                trajectoryGroup.add(segment);
+                lineSegments.push(segment);
+            }
+            
+            trajectoryGroup.userData = {
+                marker: positionMarker,
+                simpleLine: simpleLine,
+                lineSegments: lineSegments,
+                color: palette[i]
+            };
+            
+            this.scene.add(trajectoryGroup);
+            this.trajectories.push(trajectoryGroup);
+        }
+        
+        const showTrajectory = this.ui.showTrajectory.checked;
+        this.trajectories.forEach(trajectory => trajectory.visible = showTrajectory);
+      }
+      
+      createColorPalette(count) {
+        const colors = [];
+        const hueStep = 360 / count;
+        
+        for (let i = 0; i < count; i++) {
+          const hue = (i * hueStep) % 360;
+          const color = new THREE.Color().setHSL(hue / 360, 0.8, 0.6);
+          colors.push(color);
+        }
+        
+        return colors;
+      }
+      
+      updatePointCloud(frameIndex) {
+        if (!this.data || !this.pointCloud) return;
+        
+        const positions = this.pointCloud.geometry.attributes.position.array;
+        const colors = this.pointCloud.geometry.attributes.color.array;
+
+        const rgbVideo = this.data.rgb_video;
+        const depthsRgb = this.data.depths_rgb;
+        const intrinsics = this.data.intrinsics;
+        const invExtrinsics = this.data.inv_extrinsics;
+        
+        const width = this.config.resolution[0];
+        const height = this.config.resolution[1];
+        const numPoints = width * height;
+        
+        const K = this.get3x3Matrix(intrinsics.data, intrinsics.shape, frameIndex);
+        const fx = K[0][0], fy = K[1][1], cx = K[0][2], cy = K[1][2];
+        
+        const invExtrMat = this.get4x4Matrix(invExtrinsics.data, invExtrinsics.shape, frameIndex);
+        const transform = this.getTransformElements(invExtrMat);
+        
+        const rgbFrame = this.getFrame(rgbVideo.data, rgbVideo.shape, frameIndex);
+        const depthFrame = this.getFrame(depthsRgb.data, depthsRgb.shape, frameIndex);
+        
+        const maxDepth = parseFloat(this.ui.maxDepth.value) || 10.0;
+        
+        let validPointCount = 0;
+        
+        for (let i = 0; i < numPoints; i++) {
+          const xPix = i % width;
+          const yPix = Math.floor(i / width);
+          
+          const d0 = depthFrame[i * 3];
+          const d1 = depthFrame[i * 3 + 1];
+          const depthEncoded = d0 | (d1 << 8);
+          const depthValue = (depthEncoded / ((1 << 16) - 1)) * 
+                           (this.config.depthRange[1] - this.config.depthRange[0]) + 
+                           this.config.depthRange[0];
+          
+          if (depthValue === 0 || depthValue > maxDepth) {
+            continue;
+          }
+          
+          const X = ((xPix - cx) * depthValue) / fx;
+          const Y = ((yPix - cy) * depthValue) / fy;
+          const Z = depthValue;
+          
+          const tx = transform.m11 * X + transform.m12 * Y + transform.m13 * Z + transform.m14;
+          const ty = transform.m21 * X + transform.m22 * Y + transform.m23 * Z + transform.m24;
+          const tz = transform.m31 * X + transform.m32 * Y + transform.m33 * Z + transform.m34;
+          
+          const index = validPointCount * 3;
+          positions[index] = tx;
+          positions[index + 1] = -ty;
+          positions[index + 2] = -tz;
+          
+          colors[index] = rgbFrame[i * 3] / 255;
+          colors[index + 1] = rgbFrame[i * 3 + 1] / 255;
+          colors[index + 2] = rgbFrame[i * 3 + 2] / 255;
+          
+          validPointCount++;
+        }
+        
+        this.pointCloud.geometry.setDrawRange(0, validPointCount);
+        this.pointCloud.geometry.attributes.position.needsUpdate = true;
+        this.pointCloud.geometry.attributes.color.needsUpdate = true;
+        this.pointCloud.geometry.computeBoundingSphere(); // Important for camera culling
+        
+        this.updateTrajectories(frameIndex);
+        
+        // Keep History management
+        this.updateHistory(frameIndex);
+        
+        const progress = (frameIndex + 1) / this.config.totalFrames;
+        this.ui.progress.style.width = `${progress * 100}%`;
+        
+        if (this.ui.frameCounter && this.config.totalFrames) {
+          this.ui.frameCounter.textContent = `Frame ${frameIndex} / ${this.config.totalFrames - 1}`;
+        }
+
+        this.updateCameraFrustum(frameIndex);
+      }
+      
+      updateTrajectories(frameIndex) {
+        if (!this.data.trajectories || this.trajectories.length === 0) return;
+        
+        const trajectoryData = this.data.trajectories.data;
+        const [totalFrames, numTrajectories] = this.data.trajectories.shape;
+        const historyFrames = parseInt(this.ui.trajectoryHistory.value);
+        const tailOpacity = parseFloat(this.ui.trajectoryFade.value);
+        
+        const isRichMode = this.ui.enableRichTrail.checked;
+
+        for (let i = 0; i < numTrajectories; i++) {
+          const trajectoryGroup = this.trajectories[i];
+          const { marker, simpleLine, lineSegments } = trajectoryGroup.userData;
+          
+          const currentPos = new THREE.Vector3();
+          const currentOffset = (frameIndex * numTrajectories + i) * 3;
+          
+          currentPos.x = trajectoryData[currentOffset];
+          currentPos.y = -trajectoryData[currentOffset + 1];
+          currentPos.z = -trajectoryData[currentOffset + 2];
+          
+          marker.position.copy(currentPos);
+          marker.material.opacity = 1.0; 
+          
+          const historyToShow = Math.min(historyFrames, frameIndex + 1);
+
+          if (isRichMode) {
+              // --- High-Quality Mode ---
+              simpleLine.visible = false;
+
+              for (let j = 0; j < lineSegments.length; j++) {
+                  const segment = lineSegments[j];
+                  if (j < historyToShow - 1) {
+                      const headFrame = frameIndex - j;
+                      const tailFrame = frameIndex - j - 1;
+                      const headOffset = (headFrame * numTrajectories + i) * 3;
+                      const tailOffset = (tailFrame * numTrajectories + i) * 3;
+                      const positions = [
+                          trajectoryData[headOffset], -trajectoryData[headOffset + 1], -trajectoryData[headOffset + 2],
+                          trajectoryData[tailOffset], -trajectoryData[tailOffset + 1], -trajectoryData[tailOffset + 2]
+                      ];
+                      segment.geometry.setPositions(positions);
+                      const headOpacity = 1.0;
+                      const normalizedAge = j / Math.max(1, historyToShow - 2);
+                      const alpha = headOpacity - (headOpacity - tailOpacity) * normalizedAge;
+                      segment.material.opacity = Math.max(0, alpha);
+                      segment.visible = true;
+                  } else {
+                      segment.visible = false;
+                  }
+              }
+          } else {
+              // --- Performance Mode ---
+              lineSegments.forEach(s => s.visible = false);
+              simpleLine.visible = true;
+
+              const positions = simpleLine.geometry.attributes.position.array;
+              for (let j = 0; j < historyToShow; j++) {
+                  const historyFrame = Math.max(0, frameIndex - j);
+                  const offset = (historyFrame * numTrajectories + i) * 3;
+                  positions[j * 3] = trajectoryData[offset];
+                  positions[j * 3 + 1] = -trajectoryData[offset + 1];
+                  positions[j * 3 + 2] = -trajectoryData[offset + 2];
+              }
+              simpleLine.geometry.setDrawRange(0, historyToShow);
+              simpleLine.geometry.attributes.position.needsUpdate = true;
+          }
+        }
+      }
+      
+      updateTrajectorySettings() {
+        if (!this.trajectories || this.trajectories.length === 0) return;
+        
+        const ballSize = parseFloat(this.ui.trajectoryBallSize.value);
+        const lineWidth = parseFloat(this.ui.trajectoryLineWidth.value);
+        
+        this.trajectories.forEach(trajectoryGroup => {
+          const { marker, lineSegments } = trajectoryGroup.userData;
+          
+          marker.geometry.dispose();
+          marker.geometry = new THREE.SphereGeometry(ballSize, 16, 16);
+          
+          // Line width only affects rich mode
+          lineSegments.forEach(segment => {
+            if (segment.material) {
+              segment.material.linewidth = lineWidth;
+            }
+          });
+        });
+        
+        this.updateTrajectories(this.currentFrame);
+      }
+      
+      getDepthColor(normalizedDepth) {
+        const hue = (1 - normalizedDepth) * 240 / 360;
+        const color = new THREE.Color().setHSL(hue, 1.0, 0.5);
+        return color;
+      }
+      
+      getFrame(typedArray, shape, frameIndex) {
+        const [T, H, W, C] = shape;
+        const frameSize = H * W * C;
+        const offset = frameIndex * frameSize;
+        return typedArray.subarray(offset, offset + frameSize);
+      }
+      
+      get3x3Matrix(typedArray, shape, frameIndex) {
+        const frameSize = 9;
+        const offset = frameIndex * frameSize;
+        const K = [];
+        for (let i = 0; i < 3; i++) {
+          const row = [];
+          for (let j = 0; j < 3; j++) {
+            row.push(typedArray[offset + i * 3 + j]);
+          }
+          K.push(row);
+        }
+        return K;
+      }
+      
+      get4x4Matrix(typedArray, shape, frameIndex) {
+        const frameSize = 16;
+        const offset = frameIndex * frameSize;
+        const M = [];
+        for (let i = 0; i < 4; i++) {
+          const row = [];
+          for (let j = 0; j < 4; j++) {
+            row.push(typedArray[offset + i * 4 + j]);
+          }
+          M.push(row);
+        }
+        return M;
+      }
+      
+      getTransformElements(matrix) {
+        return {
+          m11: matrix[0][0], m12: matrix[0][1], m13: matrix[0][2], m14: matrix[0][3],
+          m21: matrix[1][0], m22: matrix[1][1], m23: matrix[1][2], m24: matrix[1][3],
+          m31: matrix[2][0], m32: matrix[2][1], m33: matrix[2][2], m34: matrix[2][3]
+        };
+      }
+      
+      togglePlayback() {
+        this.isPlaying = !this.isPlaying;
+        
+        const playIcon = document.getElementById('play-icon');
+        const pauseIcon = document.getElementById('pause-icon');
+        
+        if (this.isPlaying) {
+          playIcon.style.display = 'none';
+          pauseIcon.style.display = 'block';
+          this.lastFrameTime = performance.now();
+        } else {
+          playIcon.style.display = 'block';
+          pauseIcon.style.display = 'none';
+        }
+      }
+      
+      cyclePlaybackSpeed() {
+        const speeds = [0.5, 1, 2, 4, 8];
+        const speedRates = speeds.map(s => s * this.config.baseFrameRate);
+        
+        let currentIndex = 0;
+        const normalizedSpeed = this.playbackSpeed / this.config.baseFrameRate;
+        
+        for (let i = 0; i < speeds.length; i++) {
+          if (Math.abs(normalizedSpeed - speeds[i]) < Math.abs(normalizedSpeed - speeds[currentIndex])) {
+            currentIndex = i;
+          }
+        }
+        
+        const nextIndex = (currentIndex + 1) % speeds.length;
+        this.playbackSpeed = speedRates[nextIndex];
+        this.ui.speedBtn.textContent = `${speeds[nextIndex]}x`;
+        
+        if (speeds[nextIndex] === 1) {
+          this.ui.speedBtn.classList.remove('active');
+        } else {
+          this.ui.speedBtn.classList.add('active');
+        }
+      }
+      
+      seekTo(position) {
+        const frameIndex = Math.floor(position * this.config.totalFrames);
+        this.currentFrame = Math.max(0, Math.min(frameIndex, this.config.totalFrames - 1));
+        this.updatePointCloud(this.currentFrame);
+      }
+      
+      updatePointCloudSettings() {
+        if (!this.pointCloud) return;
+        
+        const size = parseFloat(this.ui.pointSize.value);
+        const opacity = parseFloat(this.ui.pointOpacity.value);
+        
+        this.pointCloud.material.size = size;
+        this.pointCloud.material.opacity = opacity;
+        this.pointCloud.material.needsUpdate = true;
+        
+        this.updatePointCloud(this.currentFrame);
+      }
+      
+      updateControls() {
+        if (!this.controls) return;
+        this.controls.update();
+      }
+      
+      resetView() {
+        if (!this.camera || !this.controls) return;
+        
+        // Reset camera position
+        this.camera.position.set(0, 0, this.config.cameraZ || 0);
+        
+        // Reset controls
+        this.controls.reset();
+        
+        // Set target slightly in front of camera
+        this.controls.target.set(0, 0, -1);
+        this.controls.update();
+        
+        // Show status message
+        this.ui.statusBar.textContent = "View reset";
+        this.ui.statusBar.classList.remove('hidden');
+        
+        // Hide status message after a few seconds
+        setTimeout(() => {
+          this.ui.statusBar.classList.add('hidden');
+        }, 3000);
+      }
+      
+      onWindowResize() {
+        if (!this.camera || !this.renderer) return;
+        
+        const windowAspect = window.innerWidth / window.innerHeight;
+        this.camera.aspect = windowAspect;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        if (this.trajectories && this.trajectories.length > 0) {
+          const resolution = new THREE.Vector2(window.innerWidth, window.innerHeight);
+          this.trajectories.forEach(trajectory => {
+            const { lineSegments } = trajectory.userData;
+            if (lineSegments && lineSegments.length > 0) {
+              lineSegments.forEach(segment => {
+                if (segment.material && segment.material.resolution) {
+                  segment.material.resolution.copy(resolution);
+                }
+              });
+            }
+          });
+        }
+        
+        if (this.cameraFrustum) {
+          const resolution = new THREE.Vector2(window.innerWidth, window.innerHeight);
+          this.cameraFrustum.children.forEach(line => {
+            if (line.material && line.material.resolution) {
+              line.material.resolution.copy(resolution);
+            }
+          });
+        }
+      }
+      
+      startAnimation() {
+        this.isPlaying = true;
+        this.lastFrameTime = performance.now();
+        
+        this.camera.position.set(0, 0, this.config.cameraZ || 0);
+        this.controls.target.set(0, 0, -1);
+        this.controls.update();
+
+        this.playbackSpeed = this.config.baseFrameRate;
+        
+        document.getElementById('play-icon').style.display = 'none';
+        document.getElementById('pause-icon').style.display = 'block';
+        
+        this.animate();
+      }
+      
+      animate() {
+        requestAnimationFrame(() => this.animate());
+        
+        if (this.controls) {
+          this.controls.update();
+        }
+        
+        if (this.isPlaying && this.data) {
+          const now = performance.now();
+          const delta = (now - this.lastFrameTime) / 1000;
+          
+          const framesToAdvance = Math.floor(delta * this.config.baseFrameRate * this.playbackSpeed);
+          if (framesToAdvance > 0) {
+            this.currentFrame = (this.currentFrame + framesToAdvance) % this.config.totalFrames;
+            this.lastFrameTime = now;
+            this.updatePointCloud(this.currentFrame);
+          }
+        }
+        
+        if (this.renderer && this.scene && this.camera) {
+          this.renderer.render(this.scene, this.camera);
+        }
+      }
+      
+      initCameraWithCorrectFOV() {
+        const fov = this.config.fov || 60;
+        
+        const windowAspect = window.innerWidth / window.innerHeight;
+        
+        this.camera = new THREE.PerspectiveCamera(
+          fov,
+          windowAspect,
+          0.1,
+          10000
+        );
+        
+        this.controls.object = this.camera;
+        this.controls.update();
+        
+        this.initCameraFrustum();
+      }
+      
+      initCameraFrustum() {
+        this.cameraFrustum = new THREE.Group();
+        
+        this.scene.add(this.cameraFrustum);
+        
+        this.initCameraFrustumGeometry();
+        
+        const showCameraFrustum = this.ui.showCameraFrustum ? this.ui.showCameraFrustum.checked : (this.defaultSettings ? this.defaultSettings.showCameraFrustum : false);
+        
+        this.cameraFrustum.visible = showCameraFrustum;
+      }
+      
+      initCameraFrustumGeometry() {
+        const fov = this.config.fov || 60;
+        const originalAspect = this.config.original_aspect_ratio || 1.33;
+        
+        const size = parseFloat(this.ui.frustumSize.value) || this.defaultSettings.frustumSize;
+        
+        const halfHeight = Math.tan(THREE.MathUtils.degToRad(fov / 2)) * size;
+        const halfWidth = halfHeight * originalAspect;
+        
+        const vertices = [
+          new THREE.Vector3(0, 0, 0),
+          new THREE.Vector3(-halfWidth, -halfHeight, size),
+          new THREE.Vector3(halfWidth, -halfHeight, size),
+          new THREE.Vector3(halfWidth, halfHeight, size),
+          new THREE.Vector3(-halfWidth, halfHeight, size)
+        ];
+        
+        const resolution = new THREE.Vector2(window.innerWidth, window.innerHeight);
+        
+        const linePairs = [
+          [1, 2], [2, 3], [3, 4], [4, 1], 
+          [0, 1], [0, 2], [0, 3], [0, 4]
+        ];
+        
+        const colors = {
+          edge: new THREE.Color(0x3366ff),
+          ray: new THREE.Color(0x33cc66)
+        };
+        
+        linePairs.forEach((pair, index) => {
+          const positions = [
+            vertices[pair[0]].x, vertices[pair[0]].y, vertices[pair[0]].z,
+            vertices[pair[1]].x, vertices[pair[1]].y, vertices[pair[1]].z
+          ];
+          
+          const lineGeometry = new THREE.LineGeometry();
+          lineGeometry.setPositions(positions);
+          
+          let color = index < 4 ? colors.edge : colors.ray;
+          
+          const lineMaterial = new THREE.LineMaterial({
+            color: color,
+            linewidth: 2,
+            resolution: resolution,
+            dashed: false
+          });
+          
+          const line = new THREE.Line2(lineGeometry, lineMaterial);
+          this.cameraFrustum.add(line);
+        });
+      }
+      
+      updateCameraFrustum(frameIndex) {
+        if (!this.cameraFrustum || !this.data) return;
+        
+        const invExtrinsics = this.data.inv_extrinsics;
+        if (!invExtrinsics) return;
+        
+        const invExtrMat = this.get4x4Matrix(invExtrinsics.data, invExtrinsics.shape, frameIndex);
+        
+        const matrix = new THREE.Matrix4();
+        matrix.set(
+          invExtrMat[0][0], invExtrMat[0][1], invExtrMat[0][2], invExtrMat[0][3],
+          invExtrMat[1][0], invExtrMat[1][1], invExtrMat[1][2], invExtrMat[1][3],
+          invExtrMat[2][0], invExtrMat[2][1], invExtrMat[2][2], invExtrMat[2][3],
+          invExtrMat[3][0], invExtrMat[3][1], invExtrMat[3][2], invExtrMat[3][3]
+        );
+        
+        const position = new THREE.Vector3();
+        position.setFromMatrixPosition(matrix);
+        
+        const rotMatrix = new THREE.Matrix4().extractRotation(matrix);
+        
+        const coordinateCorrection = new THREE.Matrix4().makeRotationX(Math.PI);
+        
+        const finalRotation = new THREE.Matrix4().multiplyMatrices(coordinateCorrection, rotMatrix);
+        
+        const quaternion = new THREE.Quaternion();
+        quaternion.setFromRotationMatrix(finalRotation);
+        
+        position.y = -position.y;
+        position.z = -position.z;
+        
+        this.cameraFrustum.position.copy(position);
+        this.cameraFrustum.quaternion.copy(quaternion);
+        
+        const showCameraFrustum = this.ui.showCameraFrustum ? this.ui.showCameraFrustum.checked : this.defaultSettings.showCameraFrustum;
+        
+        if (this.cameraFrustum.visible !== showCameraFrustum) {
+          this.cameraFrustum.visible = showCameraFrustum;
+        }
+        
+        const resolution = new THREE.Vector2(window.innerWidth, window.innerHeight);
+        this.cameraFrustum.children.forEach(line => {
+          if (line.material && line.material.resolution) {
+            line.material.resolution.copy(resolution);
+          }
+        });
+      }
+      
+      updateFrustumDimensions() {
+        if (!this.cameraFrustum) return;
+        
+        while(this.cameraFrustum.children.length > 0) {
+          const child = this.cameraFrustum.children[0];
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) child.material.dispose();
+          this.cameraFrustum.remove(child);
+        }
+        
+        this.initCameraFrustumGeometry();
+        
+        this.updateCameraFrustum(this.currentFrame);
+      }
+      
+      // Keep History methods
+      updateHistory(frameIndex) {
+        if (!this.ui.enableKeepHistory.checked || !this.data) return;
+        
+        const stride = parseInt(this.ui.historyStride.value);
+        const newHistoryFrames = this.calculateHistoryFrames(frameIndex, stride);
+        
+        // Check if history frames changed
+        if (this.arraysEqual(this.historyFrames, newHistoryFrames)) return;
+        
+        this.clearHistory();
+        this.historyFrames = newHistoryFrames;
+        
+        // Create history point clouds and trajectories
+        this.historyFrames.forEach(historyFrame => {
+          if (historyFrame !== frameIndex) {
+            this.createHistoryPointCloud(historyFrame);
+            this.createHistoryTrajectories(historyFrame);
+          }
+        });
+      }
+      
+      calculateHistoryFrames(currentFrame, stride) {
+        const frames = [];
+        let frame = 1; // Start from frame 1
+        
+        while (frame <= currentFrame && frames.length < this.maxHistoryFrames) {
+          frames.push(frame);
+          frame += stride;
+        }
+        
+        // Always include current frame
+        if (!frames.includes(currentFrame)) {
+          frames.push(currentFrame);
+        }
+        
+        return frames.sort((a, b) => a - b);
+      }
+      
+      createHistoryPointCloud(frameIndex) {
+        const numPoints = this.config.resolution[0] * this.config.resolution[1];
+        const positions = new Float32Array(numPoints * 3);
+        const colors = new Float32Array(numPoints * 3);
+        
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        
+        const material = new THREE.PointsMaterial({
+          size: parseFloat(this.ui.pointSize.value),
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.5, // Transparent for history
+          sizeAttenuation: true
+        });
+        
+        const historyPointCloud = new THREE.Points(geometry, material);
+        this.scene.add(historyPointCloud);
+        this.historyPointClouds.push(historyPointCloud);
+        
+        // Update the history point cloud with data
+        this.updateHistoryPointCloud(historyPointCloud, frameIndex);
+      }
+      
+      updateHistoryPointCloud(pointCloud, frameIndex) {
+        const positions = pointCloud.geometry.attributes.position.array;
+        const colors = pointCloud.geometry.attributes.color.array;
+
+        const rgbVideo = this.data.rgb_video;
+        const depthsRgb = this.data.depths_rgb;
+        const intrinsics = this.data.intrinsics;
+        const invExtrinsics = this.data.inv_extrinsics;
+        
+        const width = this.config.resolution[0];
+        const height = this.config.resolution[1];
+        const numPoints = width * height;
+        
+        const K = this.get3x3Matrix(intrinsics.data, intrinsics.shape, frameIndex);
+        const fx = K[0][0], fy = K[1][1], cx = K[0][2], cy = K[1][2];
+        
+        const invExtrMat = this.get4x4Matrix(invExtrinsics.data, invExtrinsics.shape, frameIndex);
+        const transform = this.getTransformElements(invExtrMat);
+        
+        const rgbFrame = this.getFrame(rgbVideo.data, rgbVideo.shape, frameIndex);
+        const depthFrame = this.getFrame(depthsRgb.data, depthsRgb.shape, frameIndex);
+        
+        const maxDepth = parseFloat(this.ui.maxDepth.value) || 10.0;
+        
+        let validPointCount = 0;
+        
+        for (let i = 0; i < numPoints; i++) {
+          const xPix = i % width;
+          const yPix = Math.floor(i / width);
+          
+          const d0 = depthFrame[i * 3];
+          const d1 = depthFrame[i * 3 + 1];
+          const depthEncoded = d0 | (d1 << 8);
+          const depthValue = (depthEncoded / ((1 << 16) - 1)) * 
+                           (this.config.depthRange[1] - this.config.depthRange[0]) + 
+                           this.config.depthRange[0];
+          
+          if (depthValue === 0 || depthValue > maxDepth) {
+            continue;
+          }
+          
+          const X = ((xPix - cx) * depthValue) / fx;
+          const Y = ((yPix - cy) * depthValue) / fy;
+          const Z = depthValue;
+          
+          const tx = transform.m11 * X + transform.m12 * Y + transform.m13 * Z + transform.m14;
+          const ty = transform.m21 * X + transform.m22 * Y + transform.m23 * Z + transform.m24;
+          const tz = transform.m31 * X + transform.m32 * Y + transform.m33 * Z + transform.m34;
+          
+          const index = validPointCount * 3;
+          positions[index] = tx;
+          positions[index + 1] = -ty;
+          positions[index + 2] = -tz;
+          
+          colors[index] = rgbFrame[i * 3] / 255;
+          colors[index + 1] = rgbFrame[i * 3 + 1] / 255;
+          colors[index + 2] = rgbFrame[i * 3 + 2] / 255;
+          
+          validPointCount++;
+        }
+        
+        pointCloud.geometry.setDrawRange(0, validPointCount);
+        pointCloud.geometry.attributes.position.needsUpdate = true;
+        pointCloud.geometry.attributes.color.needsUpdate = true;
+      }
+      
+      createHistoryTrajectories(frameIndex) {
+        if (!this.data.trajectories) return;
+        
+        const trajectoryData = this.data.trajectories.data;
+        const [totalFrames, numTrajectories] = this.data.trajectories.shape;
+        const palette = this.createColorPalette(numTrajectories);
+        
+        const historyTrajectoryGroup = new THREE.Group();
+        
+        for (let i = 0; i < numTrajectories; i++) {
+          const ballSize = parseFloat(this.ui.trajectoryBallSize.value);
+          const sphereGeometry = new THREE.SphereGeometry(ballSize, 16, 16);
+          const sphereMaterial = new THREE.MeshBasicMaterial({ 
+            color: palette[i], 
+            transparent: true, 
+            opacity: 0.3 // Transparent for history
+          });
+          const positionMarker = new THREE.Mesh(sphereGeometry, sphereMaterial);
+          
+          const currentOffset = (frameIndex * numTrajectories + i) * 3;
+          positionMarker.position.set(
+            trajectoryData[currentOffset],
+            -trajectoryData[currentOffset + 1],
+            -trajectoryData[currentOffset + 2]
+          );
+          
+          historyTrajectoryGroup.add(positionMarker);
+        }
+        
+        this.scene.add(historyTrajectoryGroup);
+        this.historyTrajectories.push(historyTrajectoryGroup);
+      }
+      
+      clearHistory() {
+        // Clear history point clouds
+        this.historyPointClouds.forEach(pointCloud => {
+          if (pointCloud.geometry) pointCloud.geometry.dispose();
+          if (pointCloud.material) pointCloud.material.dispose();
+          this.scene.remove(pointCloud);
+        });
+        this.historyPointClouds = [];
+        
+        // Clear history trajectories
+        this.historyTrajectories.forEach(trajectoryGroup => {
+          trajectoryGroup.children.forEach(child => {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) child.material.dispose();
+          });
+          this.scene.remove(trajectoryGroup);
+        });
+        this.historyTrajectories = [];
+        
+        this.historyFrames = [];
+      }
+      
+      arraysEqual(a, b) {
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+          if (a[i] !== b[i]) return false;
+        }
+        return true;
+      }
+      
+      toggleBackground() {
+        const isWhiteBackground = this.ui.whiteBackground.checked;
+        
+        if (isWhiteBackground) {
+          // Switch to white background
+          document.body.style.backgroundColor = '#ffffff';
+          this.scene.background = new THREE.Color(0xffffff);
+          
+          // Update UI elements for white background
+          document.documentElement.style.setProperty('--bg', '#ffffff');
+          document.documentElement.style.setProperty('--text', '#333333');
+          document.documentElement.style.setProperty('--text-secondary', '#666666');
+          document.documentElement.style.setProperty('--border', '#cccccc');
+          document.documentElement.style.setProperty('--surface', '#f5f5f5');
+          document.documentElement.style.setProperty('--shadow', 'rgba(0, 0, 0, 0.1)');
+          document.documentElement.style.setProperty('--shadow-hover', 'rgba(0, 0, 0, 0.2)');
+          
+          // Update status bar and control panel backgrounds
+          this.ui.statusBar.style.background = 'rgba(245, 245, 245, 0.9)';
+          this.ui.statusBar.style.color = '#333333';
+          
+          const controlPanel = document.getElementById('control-panel');
+          if (controlPanel) {
+            controlPanel.style.background = 'rgba(245, 245, 245, 0.95)';
+          }
+          
+          const settingsPanel = document.getElementById('settings-panel');
+          if (settingsPanel) {
+            settingsPanel.style.background = 'rgba(245, 245, 245, 0.98)';
+          }
+          
+        } else {
+          // Switch back to dark background
+          document.body.style.backgroundColor = '#1a1a1a';
+          this.scene.background = new THREE.Color(0x1a1a1a);
+          
+          // Restore original dark theme variables
+          document.documentElement.style.setProperty('--bg', '#1a1a1a');
+          document.documentElement.style.setProperty('--text', '#e0e0e0');
+          document.documentElement.style.setProperty('--text-secondary', '#a0a0a0');
+          document.documentElement.style.setProperty('--border', '#444444');
+          document.documentElement.style.setProperty('--surface', '#2c2c2c');
+          document.documentElement.style.setProperty('--shadow', 'rgba(0, 0, 0, 0.2)');
+          document.documentElement.style.setProperty('--shadow-hover', 'rgba(0, 0, 0, 0.3)');
+          
+          // Restore original UI backgrounds
+          this.ui.statusBar.style.background = 'rgba(30, 30, 30, 0.9)';
+          this.ui.statusBar.style.color = '#e0e0e0';
+          
+          const controlPanel = document.getElementById('control-panel');
+          if (controlPanel) {
+            controlPanel.style.background = 'rgba(44, 44, 44, 0.95)';
+          }
+          
+          const settingsPanel = document.getElementById('settings-panel');
+          if (settingsPanel) {
+            settingsPanel.style.background = 'rgba(44, 44, 44, 0.98)';
+          }
+        }
+        
+        // Show status message
+        this.ui.statusBar.textContent = isWhiteBackground ? "Switched to white background" : "Switched to dark background";
+        this.ui.statusBar.classList.remove('hidden');
+        
+        setTimeout(() => {
+          this.ui.statusBar.classList.add('hidden');
+        }, 2000);
+      }
+      
+      resetSettings() {
+        if (!this.defaultSettings) return;
+        
+        this.applyDefaultSettings();
+        
+        // Reset background to dark theme
+        if (this.ui.whiteBackground) {
+          this.ui.whiteBackground.checked = false;
+          this.toggleBackground();
+        }
+        
+        this.updatePointCloudSettings();
+        this.updateTrajectorySettings();
+        this.updateFrustumDimensions();
+        
+        // Clear history when resetting settings
+        this.clearHistory();
+        
+        this.ui.statusBar.textContent = "Settings reset to defaults";
+        this.ui.statusBar.classList.remove('hidden');
+        
+        setTimeout(() => {
+          this.ui.statusBar.classList.add('hidden');
+        }, 3000);
+      }
+    }
+    
+    window.addEventListener('DOMContentLoaded', () => {
+      new PointCloudVisualizer();
+    });
+  </script>
+</body>
+</html>

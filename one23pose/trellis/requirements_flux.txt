@@ -1,0 +1,25 @@
+torch==2.3.0
+torchvision==0.18.0
+gradio
+spaces
+open3d
+pillow==10.4.0
+imageio==2.36.1
+imageio-ffmpeg==0.5.1
+tqdm==4.67.1
+easydict==1.13
+opencv-python-headless==4.10.0.84
+scipy
+trimesh==4.5.3
+xformers==0.0.21
+spconv-cu118==2.3.6
+transformers==4.46.3
+plyfile
+kornia
+timm
+pytorch-lightning==2.1.3
+diso
+# torch-scatter==2.1.2+pt20cu118 -f https://data.pyg.org/whl/torch-2.0.0+cu118.html
+# gsplat --index-url https://docs.gsplat.studio/whl/pt20cu118
+# git+https://github.com/EasternJournalist/utils3d.git
+# git+https://github.com/NVlabs/nvdiffrast

@@ -1,0 +1,56 @@
+# ignore the multi media
+checkpoints
+**/checkpoints/
+**/temp/
+temp
+assets_dev
+assets/example0/results
+assets/example0/snowboard.npz
+assets/example1/results
+assets/davis_eval
+assets/*/results
+*gradio*
+# 
+models/monoD/zoeDepth/ckpts/*
+models/monoD/depth_anything/ckpts/*
+vis_results
+dist_encrypted
+# remove the dependencies
+deps
+
+# filter the __pycache__ files
+__pycache__/
+/**/**/__pycache__
+/**/__pycache__
+
+# ignore the visualizer
+viser
+viser_result
+benchmark/results
+benchmark
+
+prev_version
+spat_ceres
+wandb
+*.log
+seg_target.py
+
+infer_cam.py
+infer_stream.py
+
+*.egg-info/
+**/*.egg-info
+
+
+config/fix_2d.yaml
+
+
+models/**/build
+models/**/dist
+
+temp_local
+examples/results
+
+dyn_check
+
+evaluation/saved
