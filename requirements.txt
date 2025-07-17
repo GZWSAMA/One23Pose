@@ -1,6 +1,8 @@
+#spatial tracker v2
+numpy==1.26.4
 gradio==5.31.0
 pydantic==2.10.6
-opencv-python-headless
+opencv-python-headless==4.10.0.84
 einops
 einx
 plotly
@@ -33,3 +35,22 @@ ray[default]
 jaxtyping
 transformers
 
+#trellis
+spaces
+trimesh==4.5.3
+pytorch_lightning
+open3d
+deepspeed
+git+https://github.com/NVlabs/nvdiffrast
+xatlas
+igraph
+pyvista
+pymeshfix
+peft
+spconv-cu121==2.3.7
+
+#foundationpose
+h5py==3.10.0
+transformations==2024.6.1
+ruamel.yaml==0.18.6
+warp-lang==1.0.2

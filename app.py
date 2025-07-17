@@ -97,33 +97,21 @@ def create_user_temp_dir():
 
 from huggingface_hub import hf_hub_download
 
-vggt4track_model = VGGT4Track.from_pretrained("Yuxihenry/SpatialTrackerV2_Front")
+vggt4track_model = VGGT4Track.from_pretrained("checkpoints/SpatialTrackerV2/vggt_front")
 vggt4track_model.eval()
 vggt4track_model = vggt4track_model.to("cuda")
 
 # Global model initialization
 print("🚀 Initializing local models...")
-tracker_model_offline = Predictor.from_pretrained("Yuxihenry/SpatialTrackerV2-Offline")
+tracker_model_offline = Predictor.from_pretrained("checkpoints/SpatialTrackerV2/tracker_offline")
 tracker_model_offline.eval()
-tracker_model_online = Predictor.from_pretrained("Yuxihenry/SpatialTrackerV2-Online")
+tracker_model_online = Predictor.from_pretrained("checkpoints/SpatialTrackerV2/tracker_online")
 tracker_model_online.eval() 
 predictor = get_sam_predictor()
 print("✅ Models loaded successfully!")
 
 print("🚀 Initializing trellis models...")
-from peft import LoraConfig, get_peft_model 
-peft_config = LoraConfig(
-    r=512,
-    lora_alpha=512,
-    lora_dropout=0.0,
-    target_modules=["to_q", "to_kv", "to_out", "to_qkv"]
-)
-from peft import LoraConfig, get_peft_model
-trellis_pipeline = TrellisImageTo3DPipeline.from_pretrained("jetx/TRELLIS-image-large")
-trellis_pipeline.slat_flow_model = get_peft_model(trellis_pipeline.models['slat_flow_model'], peft_config)
-trellis_pipeline.slat_flow_model.print_trainable_parameters()
-trellis_pipeline.models['slat_flow_model'] = trellis_pipeline.slat_flow_model
-trellis_pipeline.load_model("slat_flow_model", "one23pose/trellis/checkpoints/trellis-even-huge-lora/epoch=49-step=123100.ckpt")
+trellis_pipeline = TrellisImageTo3DPipeline.from_pretrained("checkpoints/Trellis")
 trellis_pipeline.cuda()
 print("✅ Trellis models loaded successfully!")
 
@@ -512,16 +500,16 @@ def initialize_predictor(checkpoint):
     """Initialize the SAM2 video predictor with the specified checkpoint."""
     global predictor_sam
     if checkpoint == "tiny":
-        sam2_checkpoint = "one23pose/SAM2-in-video/checkpoints/sam2_hiera_tiny.pt"
+        sam2_checkpoint = "checkpoints/SAM2/sam2_hiera_tiny.pt"
         model_cfg = "sam2_hiera_t.yaml"
     elif checkpoint == "small":
-        sam2_checkpoint = "one23pose/SAM2-in-video/checkpoints/sam2_hiera_small.pt"
+        sam2_checkpoint = "checkpoints/SAM2/sam2_hiera_small.pt"
         model_cfg = "sam2_hiera_s.yaml"
     elif checkpoint == "base-plus":
-        sam2_checkpoint = "one23pose/SAM2-in-video/checkpoints/sam2_hiera_base_plus.pt"
+        sam2_checkpoint = "checkpoints/SAM2/sam2_hiera_base_plus.pt"
         model_cfg = "sam2_hiera_b+.yaml"
     elif checkpoint == "large":
-        sam2_checkpoint = "one23pose/SAM2-in-video/checkpoints/sam2_hiera_large.pt"
+        sam2_checkpoint = "checkpoints/SAM2/sam2_hiera_large.pt"
         model_cfg = "sam2_hiera_l.yaml"
     else:
         raise ValueError("Invalid checkpoint")
@@ -1562,16 +1550,17 @@ with gr.Blocks(
         # Horizontal video examples with slider
         # gr.HTML("<div style='margin-top: 5px;'></div>")
         gr.Examples(
-            examples=[
-                f'assets/example_videos/{video}'
-                for video in os.listdir("assets/example_videos")
+            examples = [
+                f'{folder}/{video}' 
+                for folder in ["assets/example_videos", "assets/hot3d_video"] 
+                for video in os.listdir(folder)
             ],
             inputs=[video_input],
             outputs=[video_input],
             fn=None,
             cache_examples=False,
             label="",
-            examples_per_page=6  # Show 6 examples per page so they can wrap to multiple rows
+            examples_per_page=8  # Show 6 examples per page so they can wrap to multiple rows
         )
 
     # Downloads section - hidden but still functional for local processing

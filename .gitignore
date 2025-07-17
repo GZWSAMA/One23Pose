@@ -146,6 +146,7 @@ dmypy.json
 
 # Folder specific to your needs
 **/tmp/
+**/data/
 **/temp_local/
 **/outputs/skyseg.onnx
 skyseg.onnx

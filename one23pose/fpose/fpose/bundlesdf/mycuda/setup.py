@@ -13,7 +13,7 @@ from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 from torch.utils.cpp_extension import load
 
 code_dir = os.path.dirname(os.path.realpath(__file__))
-
+conda_path = os.getenv('CONDA_PREFIX')
 
 nvcc_flags = ['-Xcompiler', '-O3', '-std=c++17', '-U__CUDA_NO_HALF_OPERATORS__', '-U__CUDA_NO_HALF_CONVERSIONS__', '-U__CUDA_NO_HALF2_OPERATORS__']
 c_flags = ['-O3', '-std=c++17']
@@ -33,7 +33,7 @@ setup(
         ],extra_compile_args={'gcc': c_flags, 'nvcc': nvcc_flags}),
     ],
     include_dirs=[
-        "/share/project/cwm/zheng.geng/miniconda3/envs/opose-spav2/include/eigen3",
+        f"{conda_path}/include/eigen3",
         "/usr/include/eigen3",
     ],
     cmdclass={
