@@ -187,17 +187,18 @@ with gr.Blocks() as demo:
 
 if __name__ == "__main__":
     from peft import LoraConfig, get_peft_model 
-    peft_config = LoraConfig(
-        r=512,
-        lora_alpha=512,
-        lora_dropout=0.0,
-        target_modules=["to_q", "to_kv", "to_out", "to_qkv"]
-    )
-    from peft import LoraConfig, get_peft_model
-    pipeline = TrellisImageTo3DPipeline.from_pretrained("jetx/TRELLIS-image-large")
-    pipeline.slat_flow_model = get_peft_model(pipeline.models['slat_flow_model'], peft_config)
-    pipeline.slat_flow_model.print_trainable_parameters()
-    pipeline.models['slat_flow_model'] = pipeline.slat_flow_model
-    pipeline.load_model("slat_flow_model", "checkpoints/trellis-even-huge-lora/epoch=49-step=123100.ckpt")
+    # peft_config = LoraConfig(
+    #     r=512,
+    #     lora_alpha=512,
+    #     lora_dropout=0.0,
+    #     target_modules=["to_q", "to_kv", "to_out", "to_qkv"]
+    # )
+    # from peft import LoraConfig, get_peft_model
+    # pipeline = TrellisImageTo3DPipeline.from_pretrained("jetx/TRELLIS-image-large")
+    # pipeline.slat_flow_model = get_peft_model(pipeline.models['slat_flow_model'], peft_config)
+    # pipeline.slat_flow_model.print_trainable_parameters()
+    # pipeline.models['slat_flow_model'] = pipeline.slat_flow_model
+    # pipeline.load_model("slat_flow_model", "/baai-cwm-vepfs/cwm/zheng.geng/code/pose/One23Pose/checkpoints/Stable3DGen/epoch=49-step=123100.ckpt")
+    pipeline = TrellisImageTo3DPipeline.from_pretrained("/baai-cwm-vepfs/cwm/zheng.geng/code/pose/One23Pose/checkpoints/Trellis")
     pipeline.cuda()
     demo.launch(share=False, server_name="0.0.0.0", server_port=9944, auth=("bbcc", "bbcc"))
