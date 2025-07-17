@@ -10,12 +10,7 @@
 
 ## 📄 Abstract
 
-We introduce **One-2-3-Pose**, a fast and accurate pipeline for 6D object pose and scale estimation from a single image. Given just one image of an object, our system can:
-
-- Reconstruct its 3D model from scratch
-- Estimate its 3D position, orientation, and scale with high precision
-
-This approach leverages 3D generation and domain randomization to enable **one-shot 6D pose estimation** without requiring any 3D annotations or prior object models.
+We introduce one-2-3-pose, a fast and accurate pipeline for 6D pose and scale estimation from a single image. Given just one picture of an object, our system can build its 3D model from scratch and then determine its precise 3D position, orientation, and size.
 
 ---
 
