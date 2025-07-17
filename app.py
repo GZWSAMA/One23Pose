@@ -1552,7 +1552,7 @@ with gr.Blocks(
         gr.Examples(
             examples = [
                 f'{folder}/{video}' 
-                for folder in ["assets/example_videos", "assets/hot3d_video"] 
+                for folder in ["assets/example_videos"] 
                 for video in os.listdir(folder)
             ],
             inputs=[video_input],
