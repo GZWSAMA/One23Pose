@@ -16,111 +16,55 @@ We introduce one-2-3-pose, a fast and accurate pipeline for 6D pose and scale es
 
 ## ⚙️ Installation
 
-> **Note**: This project is developed and tested under **Python 3.11**.
+### Quick Setup Using `setup.sh`
 
-### 1. Install PyTorch with CUDA support
+To streamline the setup process, we provide a `setup.sh` script that automates all installation steps. Follow these instructions to get started:
 
-Install PyTorch with the version compatible with your CUDA toolkit. Example for CUDA 12.1:
+### Prerequisites
 
-```bash
-python -m pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu121
-```
+Before running the `setup.sh` script, ensure you have the following prerequisites installed on your system:
 
----
+- Python 3.11+
+- Conda (recommended)
+- Basic build tools (`git`, `make`, `cmake`, etc.)
 
-### 2. Install Dependencies
+### Usage
 
-```bash
-pip install -r requirements.txt
-```
+1. **Clone the repository:**
 
----
+   ```bash
+   git clone https://github.com/GZWSAMA/One23Pose.git
+   cd One23Pose
+   ```
 
-### 3. Install Boost and Eigen Libraries
+2. **Make the `setup.sh` script executable:**
 
-```bash
-conda install -c conda-forge boost
-conda install -c conda-forge eigen=3.4.0
-```
+   ```bash
+   chmod +x setup.sh
+   ```
 
----
+3. **Run the `setup.sh` script:**
 
-### 4. Clone and Install Extensions
+   It is recommended to run this script within a fresh conda environment. Here's how you can create and activate a new environment before running the script:
 
-```bash
-mkdir -p tmp/extensions
+   ```bash
+   conda create -n one23pose python=3.11 -y
+   conda activate one23pose
+   ./setup.sh
+   ```
 
-# DiffOctreeRaster
-git clone --recurse-submodules https://github.com/JeffreyXiang/diffoctreerast.git tmp/extensions/diffoctreerast
-pip install tmp/extensions/diffoctreerast
+   The script will handle:
+   - Installing PyTorch with CUDA support.
+   - Installing required dependencies.
+   - Cloning and installing external extensions.
+   - Building F-Pose.
+   - Installing local packages in editable mode.
+   - Downloading pretrained weights.
+   - Patching the transformers library.
 
-# Mip-Splatting
-git clone https://github.com/autonomousvision/mip-splatting.git tmp/extensions/mip-splatting
-pip install tmp/extensions/mip-splatting/submodules/diff-gaussian-rasterization/
+4. **Verify the setup:**
 
-# PyTorch3D
-pip install git+https://github.com/facebookresearch/pytorch3d.git
-```
-
----
-
-### 5. Build F-Pose
-
-```bash
-cd one23pose/fpose/fpose
-CMAKE_PREFIX_PATH=$CONDA_PREFIX/lib/python3.11/site-packages/pybind11/share/cmake/pybind11 bash build_all_conda.sh
-cd ../../..
-```
-
----
-
-### 6. Install Packages in Development Mode
-
-```bash
-# Install F-Pose
-cd one23pose/fpose
-pip install -e .
-cd ..
-
-# Install SAM2-in-Video
-cd ../SAM2-in-video
-pip install -e .
-cd ..
-
-# Install Trellis
-cd ../trellis
-pip install -e .
-cd ..
-
-# Install SpaTrackerV2
-cd ../SpaTrackerV2
-pip install -e .
-cd ..
-```
-
----
-
-### 7. Download Pretrained Weights
-
-```bash
-bash one23pose/scripts/download_weights.sh
-```
-
----
-
-### 8. Patch Transformers Library
-
-Edit the following file:
-
-```
-$CONDA_PREFIX/lib/python3.11/site-packages/transformers/models/sam/processing_sam.py
-```
-
-**Change line 121** to:
-
-```python
-original_sizes = original_sizes.cpu().numpy()
-```
+   After running the script, verify that all dependencies are correctly installed and the necessary files are downloaded.
 
 ---
 
