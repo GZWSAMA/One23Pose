@@ -1,14 +1,10 @@
-Here is the **fully English version** of your **README**, cleaned up, well-structured, and ready for use in a professional or open-source project.
-
----
-
 # 🎯 One View, Many Worlds: Single-Image to 3D Object Meets Generative Domain Randomization for One-Shot 6D Pose Estimation
 
 > **One-2-3-Pose**: A Fast and Accurate Pipeline for 6D Pose and Scale Estimation from a Single Image
 
 ---
 
-![Teaser](assets/images/teaser.png)
+![Teaser](assets/teaser.png)
 
 ---
 
